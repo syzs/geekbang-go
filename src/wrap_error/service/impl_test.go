@@ -14,14 +14,14 @@ func TestLogin(t *testing.T) {
 	s := NewSrevice()
 
 	// user not exists
-	err := s.Login("Abby", "pwd")
+	err := s.Login("Alice", "pwd")
 	// errors.Is(err, dao.SqlErrNoRows) ==> err == dao.SqlErrNoRows
-	assert.Equal(t, true, errors.Is(err, dao.SqlErrNoRows))
-	assert.Equal(t, "sql: no rows in result set", fmt.Sprintf("%v", errors.Cause(err)))
+	assert.Equal(t, true, errors.Is(err, dao.NotFound))
+	assert.Equal(t, "not found", fmt.Sprintf("%v", errors.Cause(err)))
 
 	// wrong pwd
 	err = s.Login("Eva", "wrong pwd")
-	assert.Equal(t, false, errors.Is(err, dao.SqlErrNoRows))
+	assert.Equal(t, false, errors.Is(err, dao.NotFound))
 	assert.Equal(t, "wrong password", fmt.Sprintf("%v", errors.Cause(err)))
 	assert.Equal(t, "Login Failed: wrong password", err.Error())
 
