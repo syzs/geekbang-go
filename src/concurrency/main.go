@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 func server(ctx context.Context, name, addr string, handler http.Handler) error {
@@ -30,8 +29,8 @@ func serverApp(ctx context.Context) error {
 }
 
 func serverDebug(ctx context.Context) error {
-	return server(ctx, "debug", "0.0.0.0:7777", http.DefaultServeMux)
-	//return errors.New("somethind wrong")
+	//return server(ctx, "debug", "0.0.0.0:7777", http.DefaultServeMux)
+	return errors.New("somethind wrong")
 }
 
 type serverApplication func(ctx context.Context) error
@@ -41,19 +40,24 @@ func main() {
 	serverList := []serverApplication{serverApp, serverDebug}
 
 	parentCtx, cancelFunc := context.WithCancel(context.Background())
-	signalCh := make(chan os.Signal)
+	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, os.Kill)
 
 	defer func() {
 		if cancelFunc != nil {
 			cancelFunc()
 		}
+		close(signalCh)
 	}()
 	// 利用 context 注销消息的传播路径，父 ctx 注销，会注销子 ctx
 	go func() {
-		s := <-signalCh
-		log.Printf("Got signal:%v\n", s)
-		cancelFunc()
+		select {
+		case s, ok := <-signalCh:
+			if ok {
+				log.Printf("Got signal:%v\n", s)
+				cancelFunc()
+			}
+		}
 	}()
 
 	eg, ctx := errgroup.WithContext(parentCtx)
@@ -67,6 +71,6 @@ func main() {
 		})
 	}
 	if err := eg.Wait(); err != nil {
-		log.Println("server exist")
+		log.Println("server exits")
 	}
 }
